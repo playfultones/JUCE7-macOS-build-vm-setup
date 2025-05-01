@@ -1,0 +1,20 @@
+homebrew_installed_packages:
+  - cmake
+  - ninja
+
+homebrew_cask_appdir: /Applications
+homebrew_cask_apps:
+  - visual-studio-code
+  - iterm2
+
+# Dynamic default for current user's download folder
+ipsw_filename: "UniversalMac_14.6.1_23G93_Restore.ipsw"
+ipsw_path: "{{ lookup('env', 'HOME') }}/Downloads/{{ ipsw_filename }}"
+xcode_filename: "Xcode_15.4.xip"
+xcode_path: "{{ lookup('env', 'HOME') }}/Downloads/{{ xcode_filename }}"
+
+# Other configurable parameters with defaults
+vm_name: "macOS-Sonoma"
+cpu_count: 4
+memory_mb: 8192
+disk_size_gb: 100

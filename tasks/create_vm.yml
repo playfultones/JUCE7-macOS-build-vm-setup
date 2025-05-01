@@ -1,0 +1,85 @@
+---
+# create_vm.yml
+- name: Create macOS VM with IPSW file
+  shell: prlctl create "{{ vm_name }}" --ostype macos --distribution macosx --no-hdd --restore-image "{{ ipsw_path }}"
+
+- name: Add hard disk with desired size
+  shell: prlctl set "{{ vm_name }}" --device-add hdd --size {{ disk_size_gb | int * 1024 }} --type plain
+      
+- name: Configure VM hardware
+  shell: prlctl set "{{ vm_name }}" --cpus {{ cpu_count }} --memsize {{ memory_mb }}
+
+- name: Start VM
+  shell: prlctl start "{{ vm_name }}"
+  
+- name: Wait for initial macOS setup
+  pause:
+    prompt: |
+      Please complete the macOS setup process manually.
+      
+      After setup, please enable SSH:
+      1. Open System Settings > General > Sharing
+      2. Enable "Remote Login" (SSH)
+      3. Take note of the "Local hostname" in the bottom of the window.
+      
+      Press Enter when complete to continue with automation.
+    
+- name: Prompt for VM username
+  pause:
+    prompt: "Enter macOS VM username"
+  register: username_result
+  
+- name: Set VM username fact
+  set_fact:
+    vm_username: "{{ username_result.user_input }}"
+    
+- name: Prompt for VM hostname
+  pause:
+    prompt: "Enter macOS VM hostname"
+  register: hostname_result
+  
+- name: Set VM hostname fact
+  set_fact:
+    vm_hostname: "{{ hostname_result.user_input }}"
+    
+- name: Prompt for VM password
+  vars:
+    ansible_password_encrypt: md5_crypt
+    ansible_password_chars: ['ascii_letters', 'digits', 'punctuation']
+  pause:
+    prompt: "Enter macOS VM password"
+    echo: no
+  register: password_result
+  
+- name: Set VM password fact
+  set_fact:
+    vm_password: "{{ password_result.user_input }}"
+    
+- name: Display connection information
+  debug:
+    msg: "Connecting to {{ vm_hostname }} as {{ vm_username }}"
+    
+- name: Add SSH fingerprint to known_hosts
+  shell: ssh-keyscan {{ vm_hostname }} >> ~/.ssh/known_hosts
+  args:
+    creates: "~/.ssh/known_hosts"
+
+- name: Copy Xcode XIP to VM
+  command: scp -o StrictHostKeyChecking=no "{{ xcode_path }}" "{{ vm_username }}@{{ vm_hostname }}:/Users/{{ vm_username }}/Downloads/"
+  environment:
+    SSHPASS: "{{ vm_password }}"
+  register: scp_result
+  
+- name: Display copy status
+  debug:
+    msg: "Xcode XIP file copy result: {{ 'Successful' if scp_result.rc == 0 else 'Failed' }}"
+
+- name: Add macOS VM to inventory
+  add_host:
+    name: "{{ vm_hostname }}"
+    groups: macos_vm
+    ansible_user: "{{ vm_username }}"
+    ansible_password: "{{ vm_password }}"
+    ansible_become_password: "{{ vm_password }}"
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    xcode_filename: "{{ xcode_filename }}"  # Pass the variable to the next play

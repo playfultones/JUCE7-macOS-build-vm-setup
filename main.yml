@@ -1,0 +1,51 @@
+- name: Create macOS VM with Parallels and IPSW
+  vars_files:
+      - default.config.yml
+  pre_tasks:
+    - name: Include playbook configuration.
+      include_vars: "{{ item }}"
+      with_fileglob:
+        - "{{ playbook_dir }}/config.yml"
+      tags: ['always']
+  hosts: localhost
+  tasks:
+  - import_tasks: tasks/create_vm.yml
+
+- name: Update macOS on VM
+  hosts: macos_vm
+  gather_facts: no
+  vars:
+    ansible_become_method: sudo
+  tasks:
+  - import_tasks: tasks/update_macos.yml
+
+- name: Install development environment
+  hosts: macos_vm
+  gather_facts: yes
+  vars_files:
+      - default.config.yml
+  pre_tasks:
+    - name: Include playbook configuration.
+      include_vars: "{{ item }}"
+      with_fileglob:
+        - "{{ playbook_dir }}/config.yml"
+      tags: ['always']
+  vars:
+    ansible_become_method: sudo
+  roles:
+    - geerlingguy.mac.homebrew
+  tasks:
+  - import_tasks: tasks/install_devenv.yml
+
+- name: Create Snapshot of macOS VM
+  vars_files:
+      - default.config.yml
+  pre_tasks:
+    - name: Include playbook configuration.
+      include_vars: "{{ item }}"
+      with_fileglob:
+        - "{{ playbook_dir }}/config.yml"
+      tags: ['always']
+  hosts: localhost
+  tasks:
+  - import_tasks: tasks/create_snapshot.yml

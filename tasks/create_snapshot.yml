@@ -1,0 +1,11 @@
+---
+# create_snapshot.yml
+- name: Stop the macOS VM
+  shell: prlctl stop "{{ vm_name }}"
+  register: stop_result
+- name: Create a snapshot of the macOS VM
+  shell: prlctl snapshot "{{ vm_name }}" --name "Initial Setup" --description "Snapshot after initial setup"
+  register: snapshot_result
+- name: Start the macOS VM
+  shell: prlctl start "{{ vm_name }}"
+  register: start_result

@@ -1,0 +1,141 @@
+---
+# update_macos.yml
+- name: Check if Xcode is already installed
+  raw: ls -la /Applications/Xcode.app
+  ignore_errors: yes
+  register: xcode_check
+  
+- name: Install Xcode (this will take some time)
+  when: xcode_check.rc != 0
+  block:
+    - name: Create temporary directory for extraction
+      raw: mkdir -p /Users/{{ ansible_user }}/xcode-install
+      
+    - name: Extract Xcode XIP (this can take 10-15 minutes)
+      raw: cd /Users/{{ ansible_user }}/xcode-install && /usr/bin/xip --expand /Users/{{ ansible_user }}/Downloads/{{ hostvars[inventory_hostname]['xcode_filename'] }}
+      
+    - name: Move Xcode to Applications folder
+      raw: sudo mv /Users/{{ ansible_user }}/xcode-install/Xcode.app /Applications/
+      become: true
+      
+    - name: Accept Xcode license
+      raw: sudo xcodebuild -license accept
+      become: true
+      
+    - name: Set proper ownership for Xcode
+      raw: sudo chown -R {{ ansible_user }}:staff /Applications/Xcode.app
+      become: true
+      
+    - name: Clean up temporary directory
+      raw: rm -rf /Users/{{ ansible_user }}/xcode-install
+      
+- name: Verify Xcode installation
+  raw: xcode-select -p
+  register: xcode_path
+  
+- name: Show Xcode path
+  debug:
+    msg: "Xcode installed at: {{ xcode_path.stdout_lines | default('Not installed') }}"
+    
+- name: Check for available software updates
+  shell: softwareupdate -l
+  register: available_updates
+  become: true
+  
+- name: Show available updates
+  debug:
+    msg: "{{ available_updates.stdout_lines }}"
+
+- name: Parse available update labels
+  set_fact:
+    update_labels: "{{ available_updates.stdout_lines | select('match', '\\* Label: .*') | map('regex_replace', '\\* Label: (.*)', '\\1') | list }}"
+    
+- name: Display update labels
+  debug:
+    msg: "Found updates: {{ update_labels }}"
+    
+- name: Initialize selected updates
+  set_fact:
+    selected_updates: []
+    
+- name: Prompt for each update
+  include_tasks: select_update.yml
+  loop: "{{ update_labels }}"
+  loop_control:
+    loop_var: update_label
+    
+- name: Prompt for update selection
+  pause:
+    prompt: |
+      You've selected to install: {{ selected_updates | join(', ') if selected_updates else 'No updates' }}
+      
+      Would you like to proceed interactively to see live update progress? (y/n)
+  register: interactive_choice
+  when: selected_updates | length > 0
+
+- name: Interactive software updates
+  when: selected_updates | length > 0
+  block:
+    - name: Initialize update commands
+      set_fact:
+        update_commands: |
+          {% for update in selected_updates %}
+          echo "=== Installing: {{ update }} ==="
+          sudo softwareupdate --install "{{ update }}" --verbose {{ '--restart' if 'macOS' in update else '' }}
+          {% endfor %}
+    
+    - name: Create a temporary script file
+      copy:
+        dest: "/tmp/update_script.sh"
+        content: |
+          #!/bin/bash
+          ssh {{ ansible_user }}@{{ inventory_hostname }} -t '{{ update_commands | replace("'", "''") }}'
+        mode: '0755'
+      delegate_to: localhost
+
+    - name: Set temporary script executable
+      shell: chmod +x /tmp/update_script.sh
+      delegate_to: localhost
+
+    - name: Generate terminal command for macOS
+      set_fact:
+        terminal_command: "osascript -e 'tell application \"Terminal\" to do script \"/tmp/update_script.sh\"'"
+      delegate_to: localhost
+
+    - name: Open terminal with update command
+      shell: "{{ terminal_command }}"
+      delegate_to: localhost
+      
+    - name: Wait for user to complete updates
+      pause:
+        prompt: |
+          A new terminal window should have opened with the update commands.
+          
+          If no terminal opened, please manually run the command shown above.
+          
+          Press ENTER after the updates have completed to continue with the playbook.
+
+    - name: Clean up temporary script
+      file:
+        path: "/tmp/update_script.sh"
+        state: absent
+      delegate_to: localhost
+
+    - name: Wait for VM to restart if needed
+      wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 22
+        state: started
+        delay: 30
+        timeout: 900
+      delegate_to: localhost
+      when: selected_updates | select('search', 'macOS') | list | length > 0
+    
+    - name: Verify system update status
+      shell: softwareupdate --history | head -n 20
+      register: update_history
+      become: true
+      
+    - name: Show update history
+      debug:
+        msg: "{{ update_history.stdout_lines }}"

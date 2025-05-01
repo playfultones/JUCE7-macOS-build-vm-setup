@@ -1,0 +1,11 @@
+---
+# select_update.yml
+- name: Prompt for update selection
+  pause:
+    prompt: "Do you want to install {{ update_label }}? (y/n)"
+  register: selection_response
+
+- name: Add to selected updates if chosen
+  set_fact:
+    selected_updates: "{{ selected_updates + [update_label] }}"
+  when: selection_response.user_input | lower == 'y' or selection_response.user_input | lower == 'yes'
