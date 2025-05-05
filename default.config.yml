@@ -8,6 +8,7 @@ homebrew_cask_apps:
   - visual-studio-code
   - iterm2
   - pluginval
+  - gh
 
 # Dynamic default for current user's download folder
 ipsw_filename: "UniversalMac_14.6.1_23G93_Restore.ipsw"
