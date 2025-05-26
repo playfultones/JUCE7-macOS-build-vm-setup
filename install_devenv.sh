@@ -52,7 +52,7 @@ main() {
     fi
 
     # Run Ansible playbook to install the required packages
-    ansible-playbook install_devenv_local.yml
+    ansible-playbook -K install_devenv_local.yml
 }
 
 main "$@"

@@ -3,7 +3,6 @@
   gather_facts: yes
   become: yes
   become_method: sudo
-  ask_become_pass: yes
   vars_files:
       - default.config.yml
   pre_tasks:
@@ -12,8 +11,6 @@
       with_fileglob:
         - "{{ playbook_dir }}/config.yml"
       tags: ['always']
-  vars:
-    ansible_become_method: sudo
   roles:
     - geerlingguy.mac.homebrew
   tasks:
