@@ -1,6 +1,9 @@
 - name: Install development environment
   hosts: localhost
   gather_facts: yes
+  become: yes
+  become_method: sudo
+  ask_become_pass: yes
   vars_files:
       - default.config.yml
   pre_tasks:
