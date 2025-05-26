@@ -11,6 +11,8 @@ This script will help you create a macOS build VM for development and testing. I
 ### Download macOS Sonoma installer image
 You can get it from [here](https://updates.cdn-apple.com/2024SummerFCS/fullrestores/062-52859/932E0A8F-6644-4759-82DA-F8FA8DEA806A/UniversalMac_14.6.1_23G93_Restore.ipsw).
 
+Alternatively, you can use [Mist](https://github.com/ninxsoft/Mist) or [mist-cli](https://github.com/ninxsoft/mist-cli) for getting the installer image.
+
 ### Download XCode 15.4
 You can get it from [here](https://developer.apple.com/services-account/download?path=/Developer_Tools/Xcode_15.4/Xcode_15.4.xip).
 
